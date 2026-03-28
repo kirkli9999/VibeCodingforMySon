@@ -16,6 +16,11 @@ const Controls = (() => {
         'ArrowUp': 'jump',
         'KeyS': 'crouch',
         'ArrowDown': 'crouch',
+        'KeyF': 'attack',
+        'KeyG': 'punch',
+        'Digit1': 'weapon1',
+        'Digit2': 'weapon2',
+        'Digit3': 'weapon3',
     };
 
     function init(onAction) {
@@ -32,7 +37,7 @@ const Controls = (() => {
             controls.classList.add('hidden');
             const hint = document.createElement('div');
             hint.id = 'keyboard-hint';
-            hint.textContent = '鍵盤操控: WASD 或 方向鍵 移動/跳躍';
+            hint.textContent = 'WASD/方向鍵 移動 | F 攻擊 | G 打 | 1/2/3 換武器';
             document.body.appendChild(hint);
         }
     }
@@ -41,6 +46,7 @@ const Controls = (() => {
         const buttons = document.querySelectorAll('.ctrl-btn');
         buttons.forEach(btn => {
             const action = btn.dataset.action;
+            if (!action) return;
 
             btn.addEventListener('touchstart', (e) => {
                 e.preventDefault();

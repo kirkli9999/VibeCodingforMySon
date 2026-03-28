@@ -1,6 +1,6 @@
 /**
  * Triple Choice: Ace Duel - 遊戲物理引擎
- * 從 Python game_logic.py 1:1 移植
+ * 從 Python game_logic.py 移植並擴充
  */
 
 // --- 物理常數 ---
@@ -12,10 +12,18 @@ const MOVE_SPEED = 5;
 const PLAYER_WIDTH = 36;
 const PLAYER_HEIGHT = 54;
 const CROUCH_HEIGHT = 30;
-const FLIP_DURATION = 24;  // 幀數 (~0.4秒 at 60fps)
+const FLIP_DURATION = 24;
 const FLIP_SPEED = 10;
 const FLIP_JUMP = -8;
 const GROUND_Y = 570;
+const MAX_HP = 20;
+
+// --- 武器定義 ---
+const WEAPONS = {
+    1: { name: '拳頭', range: 50, damage: 1, cooldown: 15, type: 'melee' },
+    2: { name: '劍', range: 80, damage: 2, cooldown: 25, type: 'melee' },
+    3: { name: '槍', range: 300, damage: 3, cooldown: 45, type: 'ranged', bulletSpeed: 10 },
+};
 
 class Platform {
     constructor(x, y, width, height) {
@@ -27,6 +35,33 @@ class Platform {
 
     toDict() {
         return { x: this.x, y: this.y, w: this.width, h: this.height };
+    }
+}
+
+class Bullet {
+    constructor(x, y, direction, ownerId) {
+        this.x = x;
+        this.y = y;
+        this.velX = WEAPONS[3].bulletSpeed * direction;
+        this.width = 8;
+        this.height = 4;
+        this.ownerId = ownerId;
+        this.active = true;
+    }
+
+    update() {
+        this.x += this.velX;
+        if (this.x < -10 || this.x > CANVAS_WIDTH + 10) {
+            this.active = false;
+        }
+    }
+
+    toDict() {
+        return {
+            x: this.x, y: this.y,
+            w: this.width, h: this.height,
+            owner: this.ownerId, active: this.active,
+        };
     }
 }
 
@@ -43,9 +78,28 @@ class Player {
         this.onGround = true;
         this.isCrouching = false;
         this.isFlipping = false;
-        this.facing = playerId === 0 ? 1 : -1;  // 藍朝右, 紅朝左
+        this.facing = playerId === 0 ? 1 : -1;
         this.flipTimer = 0;
         this.flipAngle = 0;
+
+        // 血量
+        this.hp = MAX_HP;
+
+        // 二段跳
+        this.jumpCount = 0;
+        this.maxJumps = 2;
+
+        // 武器系統
+        this.weapon = 1;  // 預設拳頭
+        this.attackCooldown = 0;
+        this.isAttacking = false;
+        this.attackTimer = 0;
+        this.punchCooldown = 0;
+        this.isPunching = false;
+        this.punchTimer = 0;
+
+        // 無敵幀（被打後短暫無敵）
+        this.invincible = 0;
 
         this.inputs = {
             left: false,
@@ -53,6 +107,11 @@ class Player {
             jump: false,
             crouch: false,
             flip: false,
+            attack: false,
+            punch: false,
+            weapon1: false,
+            weapon2: false,
+            weapon3: false,
         };
     }
 
@@ -62,7 +121,39 @@ class Player {
         }
     }
 
-    update(platforms) {
+    update(platforms, opponents, bullets) {
+        // 無敵幀倒數
+        if (this.invincible > 0) this.invincible--;
+
+        // 攻擊冷卻
+        if (this.attackCooldown > 0) this.attackCooldown--;
+        if (this.punchCooldown > 0) this.punchCooldown--;
+        if (this.attackTimer > 0) {
+            this.attackTimer--;
+            if (this.attackTimer <= 0) this.isAttacking = false;
+        }
+        if (this.punchTimer > 0) {
+            this.punchTimer--;
+            if (this.punchTimer <= 0) this.isPunching = false;
+        }
+
+        // 切換武器
+        if (this.inputs.weapon1) { this.weapon = 1; this.inputs.weapon1 = false; }
+        if (this.inputs.weapon2) { this.weapon = 2; this.inputs.weapon2 = false; }
+        if (this.inputs.weapon3) { this.weapon = 3; this.inputs.weapon3 = false; }
+
+        // 攻擊（F 鍵 - 使用武器）
+        if (this.inputs.attack && this.attackCooldown <= 0) {
+            this.inputs.attack = false;
+            this._doAttack(opponents, bullets);
+        }
+
+        // 打（G 鍵 - 近身拳擊）
+        if (this.inputs.punch && this.punchCooldown <= 0) {
+            this.inputs.punch = false;
+            this._doPunch(opponents);
+        }
+
         if (this.isFlipping) {
             this._updateFlip();
             this._applyGravity();
@@ -70,7 +161,6 @@ class Player {
             return;
         }
 
-        // 前空翻觸發：蹲下時按跳
         if (this.inputs.flip && this.onGround) {
             this._startFlip();
             this.inputs.flip = false;
@@ -104,14 +194,64 @@ class Player {
             this.height = PLAYER_HEIGHT;
         }
 
-        // 跳躍
-        if (this.inputs.jump && this.onGround && !this.isCrouching) {
+        // 跳躍（支援二段跳）
+        if (this.inputs.jump && !this.isCrouching && this.jumpCount < this.maxJumps) {
             this.velY = JUMP_FORCE;
             this.onGround = false;
+            this.jumpCount++;
+            this.inputs.jump = false;  // 避免連續觸發
         }
 
         this._applyGravity();
         this._checkCollisions(platforms);
+    }
+
+    _doAttack(opponents, bullets) {
+        const wpn = WEAPONS[this.weapon];
+        this.attackCooldown = wpn.cooldown;
+        this.isAttacking = true;
+        this.attackTimer = 10;
+
+        if (wpn.type === 'ranged') {
+            // 遠程：發射子彈
+            const bx = this.facing === 1 ? this.x + this.width : this.x - 8;
+            const by = this.y + this.height / 2;
+            bullets.push(new Bullet(bx, by, this.facing, this.id));
+        } else {
+            // 近戰：範圍判定
+            this._meleeHit(opponents, wpn.range, wpn.damage);
+        }
+    }
+
+    _doPunch(opponents) {
+        this.punchCooldown = 15;
+        this.isPunching = true;
+        this.punchTimer = 8;
+        this._meleeHit(opponents, 50, 1);
+    }
+
+    _meleeHit(opponents, range, damage) {
+        for (const opp of opponents) {
+            if (opp.id === this.id) continue;
+            if (opp.invincible > 0) continue;
+
+            const myCenter = this.x + this.width / 2;
+            const oppCenter = opp.x + opp.width / 2;
+            const dist = Math.abs(myCenter - oppCenter);
+            const direction = oppCenter > myCenter ? 1 : -1;
+
+            // 必須面對對手方向
+            if (direction !== this.facing) continue;
+
+            if (dist <= range && Math.abs(this.y - opp.y) < 60) {
+                opp.hp -= damage;
+                opp.invincible = 30;  // 0.5秒無敵
+                // 擊退
+                opp.velX = 6 * this.facing;
+                opp.velY = -4;
+                opp.onGround = false;
+            }
+        }
     }
 
     _startFlip() {
@@ -121,6 +261,7 @@ class Player {
         this.velY = FLIP_JUMP;
         this.velX = FLIP_SPEED * this.facing;
         this.onGround = false;
+        this.jumpCount = this.maxJumps;  // 空翻消耗所有跳躍
         if (this.isCrouching) {
             this.y -= PLAYER_HEIGHT - CROUCH_HEIGHT;
             this.height = PLAYER_HEIGHT;
@@ -162,6 +303,7 @@ class Player {
                     this.y = plat.y - this.height;
                     this.velY = 0;
                     this.onGround = true;
+                    this.jumpCount = 0;  // 落地重置跳躍次數
                     break;
                 }
             }
@@ -171,6 +313,7 @@ class Player {
             this.y = GROUND_Y - this.height;
             this.velY = 0;
             this.onGround = true;
+            this.jumpCount = 0;
         }
     }
 
@@ -187,6 +330,14 @@ class Player {
             flip_angle: this.flipAngle,
             is_crouching: this.isCrouching,
             on_ground: this.onGround,
+            hp: this.hp,
+            max_hp: MAX_HP,
+            weapon: this.weapon,
+            weapon_name: WEAPONS[this.weapon].name,
+            is_attacking: this.isAttacking,
+            is_punching: this.isPunching,
+            invincible: this.invincible,
+            jump_count: this.jumpCount,
         };
     }
 }
@@ -194,21 +345,48 @@ class Player {
 class GameState {
     constructor() {
         this.platforms = [
-            new Platform(325, 300, 150, 15),
-            new Platform(80, 430, 170, 15),
-            new Platform(550, 430, 170, 15),
+            new Platform(325, 300, 150, 15),   // 中央高台
+            new Platform(80, 430, 170, 15),     // 左台（出場點）
+            new Platform(550, 430, 170, 15),    // 右台（出場點）
         ];
+        // 玩家從左右平台出場
         this.players = [
-            new Player(0, 100, GROUND_Y - PLAYER_HEIGHT, '#4488ff'),
-            new Player(1, 660, GROUND_Y - PLAYER_HEIGHT, '#ff4444'),
+            new Player(0, 120, 430 - PLAYER_HEIGHT, '#4488ff'),   // P1 在左台上
+            new Player(1, 600, 430 - PLAYER_HEIGHT, '#ff4444'),   // P2 在右台上
         ];
+        this.bullets = [];
         this.started = false;
     }
 
     update() {
         if (!this.started) return;
+
+        // 更新子彈
+        for (const bullet of this.bullets) {
+            bullet.update();
+            // 子彈碰撞檢測
+            for (const player of this.players) {
+                if (player.id === bullet.ownerId) continue;
+                if (player.invincible > 0) continue;
+                if (!bullet.active) continue;
+                if (bullet.x < player.x + player.width &&
+                    bullet.x + bullet.width > player.x &&
+                    bullet.y < player.y + player.height &&
+                    bullet.y + bullet.height > player.y) {
+                    player.hp -= WEAPONS[3].damage;
+                    player.invincible = 30;
+                    player.velX = (bullet.velX > 0 ? 1 : -1) * 4;
+                    player.velY = -3;
+                    player.onGround = false;
+                    bullet.active = false;
+                }
+            }
+        }
+        // 移除失效子彈
+        this.bullets = this.bullets.filter(b => b.active);
+
         for (const player of this.players) {
-            player.update(this.platforms);
+            player.update(this.platforms, this.players, this.bullets);
         }
     }
 
@@ -216,10 +394,12 @@ class GameState {
         return {
             players: this.players.map(p => p.toDict()),
             platforms: this.platforms.map(p => p.toDict()),
+            bullets: this.bullets.map(b => b.toDict()),
             started: this.started,
         };
     }
 }
 
-// 掛在 window 上讓其他檔案存取
 window.GameState = GameState;
+window.WEAPONS = WEAPONS;
+window.MAX_HP = MAX_HP;
