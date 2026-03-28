@@ -12,26 +12,33 @@
 html, body {
     width: 100%;
     height: 100%;
-    overflow: hidden;
     background: #1a1a2e;
     font-family: 'Segoe UI', sans-serif;
     color: #fff;
+}
+
+/* game-container 鎖定觸控，其他畫面允許滾動 */
+#game-container {
     touch-action: none;
 }
 
 /* ===== 通用畫面 ===== */
 .screen {
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: manipulation;
 }
 
 /* ===== 大廳 ===== */
 .lobby-content {
     text-align: center;
-    padding: 30px;
+    padding: 30px 20px;
+    padding-bottom: 60px;
     max-width: 400px;
     width: 100%;
 }
@@ -183,29 +190,32 @@ html, body {
 #game-container {
     width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    position: relative;
     background: #1a1a2e;
+    overflow: hidden;
 }
 
 #game-canvas {
     display: block;
     background: #16213e;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
-/* 觸控按鈕 */
+/* 觸控按鈕 - 半透明覆蓋在畫面上 */
 #controls {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 140px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 8px 12px;
+    padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 8px) 10px;
     z-index: 50;
+    pointer-events: none;
 }
 
 #controls.hidden {
@@ -214,37 +224,33 @@ html, body {
 
 #dpad {
     display: flex;
-    gap: 6px;
+    gap: 5px;
     align-items: center;
-}
-
-#weapon-bar {
-    display: flex;
-    gap: 4px;
-    align-items: flex-end;
-    margin-bottom: 10px;
+    pointer-events: auto;
 }
 
 #action-buttons {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
+    pointer-events: auto;
 }
 
 .ctrl-btn {
-    width: 58px;
-    height: 58px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.4);
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-    font-size: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    background: rgba(30, 30, 60, 0.55);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 18px;
     font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: background 0.1s;
+    pointer-events: auto;
 }
 
 .ctrl-btn:active,
@@ -254,10 +260,10 @@ html, body {
 }
 
 .weapon-btn {
-    width: 44px;
-    height: 44px;
-    font-size: 16px;
-    background: rgba(200, 150, 50, 0.2);
+    width: 42px;
+    height: 42px;
+    font-size: 15px;
+    background: rgba(160, 120, 40, 0.45);
     border-color: rgba(200, 150, 50, 0.5);
 }
 
@@ -268,13 +274,13 @@ html, body {
 }
 
 .action-btn {
-    width: 65px;
-    height: 65px;
-    font-size: 22px;
+    width: 56px;
+    height: 56px;
+    font-size: 20px;
 }
 
 .jump-btn {
-    background: rgba(100, 200, 255, 0.2);
+    background: rgba(60, 140, 200, 0.45);
     border-color: rgba(100, 200, 255, 0.5);
 }
 
@@ -285,7 +291,7 @@ html, body {
 }
 
 .attack-btn {
-    background: rgba(255, 100, 100, 0.2);
+    background: rgba(200, 60, 60, 0.45);
     border-color: rgba(255, 100, 100, 0.5);
 }
 
@@ -295,15 +301,23 @@ html, body {
     border-color: rgba(255, 100, 100, 0.9);
 }
 
-.punch-btn {
-    background: rgba(255, 180, 50, 0.2);
-    border-color: rgba(255, 180, 50, 0.5);
+/* 橫向時按鈕更小更緊湊 */
+@media (orientation: landscape) and (max-height: 500px) {
+    .ctrl-btn { width: 44px; height: 44px; font-size: 15px; }
+    .action-btn { width: 48px; height: 48px; font-size: 17px; }
+    .weapon-btn { width: 38px; height: 38px; font-size: 13px; }
+    #controls { padding: 4px 8px calc(env(safe-area-inset-bottom, 0px) + 4px) 8px; }
+    #dpad { gap: 3px; }
+    #action-buttons { gap: 4px; }
 }
 
-.punch-btn:active,
-.punch-btn.pressed {
-    background: rgba(255, 180, 50, 0.5);
-    border-color: rgba(255, 180, 50, 0.9);
+/* 小螢幕直向 */
+@media (orientation: portrait) and (max-width: 420px) {
+    .ctrl-btn { width: 46px; height: 46px; font-size: 16px; }
+    .action-btn { width: 50px; height: 50px; font-size: 18px; }
+    .weapon-btn { width: 38px; height: 38px; font-size: 13px; }
+    #dpad { gap: 4px; }
+    #action-buttons { gap: 4px; }
 }
 
 /* 鍵盤提示 */
@@ -314,4 +328,5 @@ html, body {
     transform: translateX(-50%);
     color: rgba(255, 255, 255, 0.4);
     font-size: 14px;
+    white-space: nowrap;
 }

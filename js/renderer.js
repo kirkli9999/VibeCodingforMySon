@@ -11,9 +11,7 @@ const Renderer = (() => {
     function init(canvasEl) { canvas = canvasEl; ctx = canvas.getContext('2d'); resize(); }
 
     function resize() {
-        const controls = document.getElementById('controls');
-        const controlsHeight = (controls && !controls.classList.contains('hidden')) ? 140 : 0;
-        const availHeight = window.innerHeight - controlsHeight;
+        const availHeight = window.innerHeight;
         const availWidth = window.innerWidth;
         const ratio = GAME_WIDTH / GAME_HEIGHT;
         let w, h;
