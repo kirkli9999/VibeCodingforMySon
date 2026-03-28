@@ -7,20 +7,32 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+
+    <!-- ===== 大廳 ===== -->
     <div id="lobby" class="screen">
         <div class="lobby-content">
             <h1 class="game-title">Triple Choice<br><span>Ace Duel</span></h1>
             <p class="subtitle">終極三選一：王牌對決</p>
-            <button id="btn-practice" class="lobby-btn practice-btn">單人練習</button>
-            <div class="divider">— 雙人對戰 —</div>
+
+            <button id="btn-practice" class="lobby-btn practice-btn">單人練習 (vs 電腦)</button>
+
+            <button id="btn-local" class="lobby-btn local-btn">電腦雙人 (同鍵盤)</button>
+
+            <div class="divider">— 連線對戰 —</div>
+
             <button id="btn-create" class="lobby-btn create-btn">建立房間</button>
+
             <div class="divider">— 或 —</div>
+
             <div class="join-row">
-                <input id="room-code-input" type="text" maxlength="4" placeholder="輸入房間碼" autocomplete="off" autocapitalize="characters" spellcheck="false">
+                <input id="room-code-input" type="text" maxlength="4" placeholder="輸入房間碼"
+                       autocomplete="off" autocapitalize="characters" spellcheck="false">
                 <button id="btn-join" class="lobby-btn join-btn">加入</button>
             </div>
         </div>
     </div>
+
+    <!-- ===== 等待畫面 ===== -->
     <div id="waiting" class="screen" style="display:none">
         <div class="waiting-content">
             <div id="code-container" style="display:none">
@@ -32,27 +44,29 @@
             <button id="btn-back" class="lobby-btn back-btn">返回</button>
         </div>
     </div>
+
+    <!-- ===== 遊戲畫面 ===== -->
     <div id="game-container" style="display:none">
         <canvas id="game-canvas"></canvas>
+
         <div id="controls">
             <div id="dpad">
                 <button class="ctrl-btn" data-action="left">◀</button>
                 <button class="ctrl-btn" data-action="crouch">▼</button>
                 <button class="ctrl-btn" data-action="right">▶</button>
             </div>
-            <div id="weapon-bar">
-                <button class="ctrl-btn weapon-btn" data-action="weapon1">1</button>
-                <button class="ctrl-btn weapon-btn" data-action="weapon2">2</button>
-                <button class="ctrl-btn weapon-btn" data-action="weapon3">3</button>
-            </div>
             <div id="action-buttons">
-                <button class="ctrl-btn action-btn attack-btn" data-action="attack">F</button>
-                <button class="ctrl-btn action-btn punch-btn" data-action="punch">G</button>
+                <button class="ctrl-btn weapon-btn" data-action="switchWeapon">換</button>
+                <button class="ctrl-btn action-btn attack-btn" data-action="attack">攻</button>
                 <button class="ctrl-btn action-btn jump-btn" data-action="jump">跳</button>
             </div>
         </div>
     </div>
+
+    <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+    <!-- 遊戲模組 -->
     <script src="js/game-logic.js"></script>
     <script src="js/renderer.js"></script>
     <script src="js/controls.js"></script>
