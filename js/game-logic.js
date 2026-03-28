@@ -7,6 +7,8 @@ const CANVAS_HEIGHT = 600;
 const GRAVITY = 0.6;
 const JUMP_FORCE = -12;
 const MOVE_SPEED = 5;
+const DASH_SPEED = 9;
+const DASH_TAP_WINDOW = 12; // 連按間隔（幀數，約 0.2 秒）
 const PLAYER_WIDTH = 36;
 const PLAYER_HEIGHT = 54;
 const CROUCH_HEIGHT = 30;
@@ -61,6 +63,10 @@ class Player {
         this.weapon = 1;
         this.attackCooldown = 0; this.isAttacking = false; this.attackTimer = 0;
         this.invincible = 0;
+        // 連按加速
+        this.dashLeftTimer = 0;
+        this.dashRightTimer = 0;
+        this.isDashing = false;
         this.inputs = {
             left: false, right: false, jump: false, crouch: false, flip: false,
             attack: false, switchWeapon: false,
@@ -69,6 +75,15 @@ class Player {
 
     applyInput(action, pressed) {
         if (action in this.inputs) this.inputs[action] = pressed;
+        // 偵測連按加速
+        if (pressed && action === 'left') {
+            if (this.dashLeftTimer > 0) { this.isDashing = true; }
+            this.dashLeftTimer = DASH_TAP_WINDOW;
+        }
+        if (pressed && action === 'right') {
+            if (this.dashRightTimer > 0) { this.isDashing = true; }
+            this.dashRightTimer = DASH_TAP_WINDOW;
+        }
     }
 
     update(platforms, opponents, bullets) {
@@ -80,6 +95,11 @@ class Player {
             this.attackTimer--;
             if (this.attackTimer <= 0) this.isAttacking = false;
         }
+        // 連按計時器遞減
+        if (this.dashLeftTimer > 0) this.dashLeftTimer--;
+        if (this.dashRightTimer > 0) this.dashRightTimer--;
+        // 放開方向鍵時停止加速
+        if (!this.inputs.left && !this.inputs.right) this.isDashing = false;
 
         // 切換武器（循環 1→2→3→1）
         if (this.inputs.switchWeapon) {
@@ -101,9 +121,10 @@ class Player {
             this._applyGravity(); this._checkCollisions(platforms); return;
         }
 
+        const speed = this.isDashing ? DASH_SPEED : MOVE_SPEED;
         this.velX = 0;
-        if (this.inputs.left) { this.velX = -MOVE_SPEED; this.facing = -1; }
-        if (this.inputs.right) { this.velX = MOVE_SPEED; this.facing = 1; }
+        if (this.inputs.left) { this.velX = -speed; this.facing = -1; }
+        if (this.inputs.right) { this.velX = speed; this.facing = 1; }
 
         const wasCrouching = this.isCrouching;
         this.isCrouching = this.inputs.crouch && this.onGround;
@@ -201,6 +222,7 @@ class Player {
             weapon_type: WEAPONS[this.weapon].type,
             is_attacking: this.isAttacking,
             invincible: this.invincible, jump_count: this.jumpCount,
+            is_dashing: this.isDashing,
         };
     }
 }
@@ -306,6 +328,7 @@ class GameState {
             p.onGround = true; p.isCrouching = false; p.isFlipping = false;
             p.weapon = 1; p.attackCooldown = 0; p.isAttacking = false;
             p.invincible = 0; p.jumpCount = 0; p.height = PLAYER_HEIGHT;
+            p.dashLeftTimer = 0; p.dashRightTimer = 0; p.isDashing = false;
             p.facing = p.id === 0 ? 1 : -1;
             for (const k in p.inputs) p.inputs[k] = false;
         }
@@ -322,10 +345,10 @@ class GameState {
         if (this.roundOver) {
             this.roundEndTimer--;
             if (this.roundEndTimer <= 0) {
-                // 檢查是否五局三勝
-                if (this.p1Wins >= 3) {
+                // 檢查是否三戰二勝
+                if (this.p1Wins >= 2) {
                     this.matchOver = true; this.matchWinner = 0;
-                } else if (this.p2Wins >= 3) {
+                } else if (this.p2Wins >= 2) {
                     this.matchOver = true; this.matchWinner = 1;
                 } else {
                     this.resetRound();

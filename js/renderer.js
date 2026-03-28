@@ -245,7 +245,7 @@ const Renderer = (() => {
         ctx.fillStyle = '#fff'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(`${p1w}  -  ${p2w}`, GAME_WIDTH / 2, 30);
         ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '11px sans-serif';
-        ctx.fillText('五局三勝', GAME_WIDTH / 2, 48);
+        ctx.fillText('三戰二勝', GAME_WIDTH / 2, 48);
     }
 
     function drawRoundEnd(state) {
