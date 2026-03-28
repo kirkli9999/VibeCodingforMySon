@@ -11,9 +11,7 @@ const Renderer = (() => {
     function init(canvasEl) { canvas = canvasEl; ctx = canvas.getContext('2d'); resize(); }
 
     function resize() {
-        const controls = document.getElementById('controls');
-        const controlsHeight = (controls && !controls.classList.contains('hidden')) ? 140 : 0;
-        const availHeight = window.innerHeight - controlsHeight;
+        const availHeight = window.innerHeight;
         const availWidth = window.innerWidth;
         const ratio = GAME_WIDTH / GAME_HEIGHT;
         let w, h;
@@ -150,7 +148,7 @@ const Renderer = (() => {
                 ctx.beginPath(); ctx.arc(gunEnd + p.facing * 8, gunY, 4, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = p.color; ctx.lineWidth = 3;
             } else if (wpn === 2) {
-                // 劍：揮劍動作
+                // 劍：掮劍動作
                 const swordEnd = cx + p.facing * armLen * 1.8;
                 const swordY = shoulderY - 2;
                 // 持劍手
