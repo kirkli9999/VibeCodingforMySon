@@ -275,15 +275,15 @@ class AIController {
 
 // ===== 遊戲狀態 =====
 class GameState {
-    constructor() {
+    constructor(p1Color, p2Color) {
         this.platforms = [
             new Platform(325, 300, 150, 15),
             new Platform(80, 430, 170, 15),
             new Platform(550, 430, 170, 15),
         ];
         this.players = [
-            new Player(0, 120, 430 - PLAYER_HEIGHT, '#4488ff'),
-            new Player(1, 600, 430 - PLAYER_HEIGHT, '#ff4444'),
+            new Player(0, 120, 430 - PLAYER_HEIGHT, p1Color || '#4488ff'),
+            new Player(1, 600, 430 - PLAYER_HEIGHT, p2Color || '#ff4444'),
         ];
         this.bullets = [];
         this.started = false;
