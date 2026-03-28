@@ -7,6 +7,8 @@ const CANVAS_HEIGHT = 600;
 const GRAVITY = 0.6;
 const JUMP_FORCE = -12;
 const MOVE_SPEED = 5;
+const DASH_SPEED = 9;
+const DASH_TAP_WINDOW = 12;
 const PLAYER_WIDTH = 36;
 const PLAYER_HEIGHT = 54;
 const CROUCH_HEIGHT = 30;
@@ -61,6 +63,9 @@ class Player {
         this.weapon = 1;
         this.attackCooldown = 0; this.isAttacking = false; this.attackTimer = 0;
         this.invincible = 0;
+        this.dashLeftTimer = 0;
+        this.dashRightTimer = 0;
+        this.isDashing = false;
         this.inputs = {
             left: false, right: false, jump: false, crouch: false, flip: false,
             attack: false, switchWeapon: false,
@@ -69,10 +74,18 @@ class Player {
 
     applyInput(action, pressed) {
         if (action in this.inputs) this.inputs[action] = pressed;
+        if (pressed && action === 'left') {
+            if (this.dashLeftTimer > 0) { this.isDashing = true; }
+            this.dashLeftTimer = DASH_TAP_WINDOW;
+        }
+        if (pressed && action === 'right') {
+            if (this.dashRightTimer > 0) { this.isDashing = true; }
+            this.dashRightTimer = DASH_TAP_WINDOW;
+        }
     }
 
     update(platforms, opponents, bullets) {
-        if (this.hp <= 0) return; // 死亡不更新
+        if (this.hp <= 0) return;
 
         if (this.invincible > 0) this.invincible--;
         if (this.attackCooldown > 0) this.attackCooldown--;
@@ -80,14 +93,15 @@ class Player {
             this.attackTimer--;
             if (this.attackTimer <= 0) this.isAttacking = false;
         }
+        if (this.dashLeftTimer > 0) this.dashLeftTimer--;
+        if (this.dashRightTimer > 0) this.dashRightTimer--;
+        if (!this.inputs.left && !this.inputs.right) this.isDashing = false;
 
-        // 切換武器（循環 1→2→3→1）
         if (this.inputs.switchWeapon) {
             this.inputs.switchWeapon = false;
             this.weapon = (this.weapon % WEAPON_COUNT) + 1;
         }
 
-        // 攻擊
         if (this.inputs.attack && this.attackCooldown <= 0) {
             this.inputs.attack = false;
             this._doAttack(opponents, bullets);
@@ -101,9 +115,10 @@ class Player {
             this._applyGravity(); this._checkCollisions(platforms); return;
         }
 
+        const speed = this.isDashing ? DASH_SPEED : MOVE_SPEED;
         this.velX = 0;
-        if (this.inputs.left) { this.velX = -MOVE_SPEED; this.facing = -1; }
-        if (this.inputs.right) { this.velX = MOVE_SPEED; this.facing = 1; }
+        if (this.inputs.left) { this.velX = -speed; this.facing = -1; }
+        if (this.inputs.right) { this.velX = speed; this.facing = 1; }
 
         const wasCrouching = this.isCrouching;
         this.isCrouching = this.inputs.crouch && this.onGround;
@@ -201,11 +216,11 @@ class Player {
             weapon_type: WEAPONS[this.weapon].type,
             is_attacking: this.isAttacking,
             invincible: this.invincible, jump_count: this.jumpCount,
+            is_dashing: this.isDashing,
         };
     }
 }
 
-// ===== AI 電腦玩家 =====
 class AIController {
     constructor(playerId) {
         this.playerId = playerId;
@@ -220,11 +235,9 @@ class AIController {
         const opp = gameState.players[1 - this.playerId];
         if (me.hp <= 0) return;
 
-        // 每 10~30 幀做一次決策
         if (this.actionTimer > 0) { this.actionTimer--; return; }
         this.actionTimer = 10 + Math.floor(Math.random() * 20);
 
-        // 清除所有輸入
         for (const key in me.inputs) me.inputs[key] = false;
 
         const myX = me.x + me.width / 2;
@@ -232,12 +245,10 @@ class AIController {
         const dist = Math.abs(myX - oppX);
         const oppDir = oppX > myX ? 1 : -1;
 
-        // 面向對手
         me.facing = oppDir;
         if (oppDir === 1) me.inputs.right = true;
         else me.inputs.left = true;
 
-        // 攻擊範圍內
         const wpn = WEAPONS[me.weapon];
         if (dist < wpn.range + 10) {
             me.inputs.left = false;
@@ -245,35 +256,16 @@ class AIController {
             if (me.attackCooldown <= 0 && Math.random() < 0.6) {
                 me.inputs.attack = true;
             }
-            // 隨機閃避
-            if (Math.random() < 0.2) {
-                me.inputs.jump = true;
-            }
-            if (Math.random() < 0.1) {
-                me.inputs.crouch = true;
-            }
+            if (Math.random() < 0.2) me.inputs.jump = true;
+            if (Math.random() < 0.1) me.inputs.crouch = true;
         }
 
-        // 被攻擊時隨機跳躍閃避
-        if (me.invincible > 0 && Math.random() < 0.5) {
-            me.inputs.jump = true;
-        }
-
-        // 偶爾切換武器
-        if (Math.random() < 0.02) {
-            me.inputs.switchWeapon = true;
-        }
-
-        // 如果在平台下方，跳上去
-        if (!me.onGround && me.velY > 0) {
-            // 落地中，不做額外動作
-        } else if (Math.random() < 0.05) {
-            me.inputs.jump = true;
-        }
+        if (me.invincible > 0 && Math.random() < 0.5) me.inputs.jump = true;
+        if (Math.random() < 0.02) me.inputs.switchWeapon = true;
+        if (!me.onGround && me.velY > 0) {} else if (Math.random() < 0.05) me.inputs.jump = true;
     }
 }
 
-// ===== 遊戲狀態 =====
 class GameState {
     constructor(p1Color, p2Color) {
         this.platforms = [
@@ -287,8 +279,6 @@ class GameState {
         ];
         this.bullets = [];
         this.started = false;
-
-        // 勝負系統
         this.roundOver = false;
         this.winnerId = -1;
         this.roundEndTimer = 0;
@@ -306,6 +296,7 @@ class GameState {
             p.onGround = true; p.isCrouching = false; p.isFlipping = false;
             p.weapon = 1; p.attackCooldown = 0; p.isAttacking = false;
             p.invincible = 0; p.jumpCount = 0; p.height = PLAYER_HEIGHT;
+            p.dashLeftTimer = 0; p.dashRightTimer = 0; p.isDashing = false;
             p.facing = p.id === 0 ? 1 : -1;
             for (const k in p.inputs) p.inputs[k] = false;
         }
@@ -318,14 +309,12 @@ class GameState {
     update() {
         if (!this.started || this.matchOver) return;
 
-        // 回合結束倒數
         if (this.roundOver) {
             this.roundEndTimer--;
             if (this.roundEndTimer <= 0) {
-                // 檢查是否五局三勝
-                if (this.p1Wins >= 3) {
+                if (this.p1Wins >= 2) {
                     this.matchOver = true; this.matchWinner = 0;
-                } else if (this.p2Wins >= 3) {
+                } else if (this.p2Wins >= 2) {
                     this.matchOver = true; this.matchWinner = 1;
                 } else {
                     this.resetRound();
@@ -334,7 +323,6 @@ class GameState {
             return;
         }
 
-        // 子彈更新
         for (const bullet of this.bullets) {
             bullet.update();
             for (const player of this.players) {
@@ -353,12 +341,11 @@ class GameState {
             player.update(this.platforms, this.players, this.bullets);
         }
 
-        // 檢查勝負
         for (const p of this.players) {
             if (p.hp <= 0) {
                 this.roundOver = true;
-                this.winnerId = 1 - p.id; // 對手贏
-                this.roundEndTimer = 120; // 2 秒後下一局
+                this.winnerId = 1 - p.id;
+                this.roundEndTimer = 120;
                 if (this.winnerId === 0) this.p1Wins++;
                 else this.p2Wins++;
                 break;
