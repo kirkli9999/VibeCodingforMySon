@@ -99,7 +99,6 @@ const Controls = (() => {
         if (activeActions.has(action)) return;
         activeActions.add(action);
 
-        // 蹲下時按跳 = 前空翻
         if (action === 'jump' && activeActions.has('crouch')) {
             sendAction('flip', true);
             return;

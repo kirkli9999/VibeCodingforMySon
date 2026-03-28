@@ -12,7 +12,7 @@ const MOVE_SPEED = 5;
 const PLAYER_WIDTH = 36;
 const PLAYER_HEIGHT = 54;
 const CROUCH_HEIGHT = 30;
-const FLIP_DURATION = 24;  // 幀數 (~0.4秒 at 60fps)
+const FLIP_DURATION = 24;
 const FLIP_SPEED = 10;
 const FLIP_JUMP = -8;
 const GROUND_Y = 570;
@@ -43,7 +43,7 @@ class Player {
         this.onGround = true;
         this.isCrouching = false;
         this.isFlipping = false;
-        this.facing = playerId === 0 ? 1 : -1;  // 藍朝右, 紅朝左
+        this.facing = playerId === 0 ? 1 : -1;
         this.flipTimer = 0;
         this.flipAngle = 0;
 
@@ -70,7 +70,6 @@ class Player {
             return;
         }
 
-        // 前空翻觸發：蹲下時按跳
         if (this.inputs.flip && this.onGround) {
             this._startFlip();
             this.inputs.flip = false;
@@ -79,7 +78,6 @@ class Player {
             return;
         }
 
-        // 水平移動
         this.velX = 0;
         if (this.inputs.left) {
             this.velX = -MOVE_SPEED;
@@ -90,7 +88,6 @@ class Player {
             this.facing = 1;
         }
 
-        // 蹲下
         const wasCrouching = this.isCrouching;
         this.isCrouching = this.inputs.crouch && this.onGround;
         if (this.isCrouching) {
@@ -104,7 +101,6 @@ class Player {
             this.height = PLAYER_HEIGHT;
         }
 
-        // 跳躍
         if (this.inputs.jump && this.onGround && !this.isCrouching) {
             this.velY = JUMP_FORCE;
             this.onGround = false;
@@ -221,5 +217,4 @@ class GameState {
     }
 }
 
-// 掛在 window 上讓其他檔案存取
 window.GameState = GameState;

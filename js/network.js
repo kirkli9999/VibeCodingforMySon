@@ -10,7 +10,7 @@ const NetworkManager = (() => {
     let disconnectCallback = null;
 
     function generateCode() {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';  // 去掉 I 和 O 避免混淆
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
         let code = '';
         for (let i = 0; i < 4; i++) {
             code += chars[Math.floor(Math.random() * chars.length)];
@@ -26,7 +26,6 @@ const NetworkManager = (() => {
             peer = new Peer(peerId);
 
             peer.on('open', () => {
-                // 等待對手連線
                 peer.on('connection', (connection) => {
                     conn = connection;
                     setupConnection(conn);
@@ -36,7 +35,6 @@ const NetworkManager = (() => {
 
             peer.on('error', (err) => {
                 if (err.type === 'unavailable-id') {
-                    // ID 衝突，重試
                     peer.destroy();
                     createRoom().then(resolve).catch(reject);
                 } else {
@@ -65,7 +63,6 @@ const NetworkManager = (() => {
 
             peer.on('error', (err) => reject(err));
 
-            // 10 秒超時
             setTimeout(() => reject(new Error('連線超時')), 10000);
         });
     }

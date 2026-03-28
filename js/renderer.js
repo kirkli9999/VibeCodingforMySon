@@ -38,7 +38,6 @@ const Renderer = (() => {
     function render(state) {
         ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-        // 背景漸層
         const gradient = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
         gradient.addColorStop(0, '#0f0c29');
         gradient.addColorStop(0.5, '#302b63');
@@ -48,7 +47,6 @@ const Renderer = (() => {
 
         if (!state) return;
 
-        // 平台
         state.platforms.forEach(plat => {
             ctx.fillStyle = '#4a4a6c';
             ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
@@ -56,13 +54,11 @@ const Renderer = (() => {
             ctx.fillRect(plat.x, plat.y, plat.w, 3);
         });
 
-        // 地面
         ctx.fillStyle = '#3a3a5c';
         ctx.fillRect(0, 570, GAME_WIDTH, 30);
         ctx.fillStyle = '#4a4a6c';
         ctx.fillRect(0, 570, GAME_WIDTH, 3);
 
-        // 玩家
         state.players.forEach(player => drawPlayer(player));
     }
 
@@ -77,16 +73,13 @@ const Renderer = (() => {
             ctx.translate(-cx, -cy);
         }
 
-        // 身體
         ctx.fillStyle = player.color;
         ctx.fillRect(player.x, player.y, player.w, player.h);
 
-        // 邊框
         ctx.strokeStyle = 'rgba(255,255,255,0.3)';
         ctx.lineWidth = 2;
         ctx.strokeRect(player.x, player.y, player.w, player.h);
 
-        // 眼睛
         const eyeSize = 5;
         const eyeY = player.y + player.h * 0.3;
         const eyeX = player.facing === 1
@@ -95,11 +88,9 @@ const Renderer = (() => {
         ctx.fillStyle = '#fff';
         ctx.fillRect(eyeX, eyeY, eyeSize, eyeSize);
 
-        // 瞳孔
         ctx.fillStyle = '#000';
         ctx.fillRect(eyeX + (player.facing === 1 ? 2 : 0), eyeY + 1, 3, 3);
 
-        // 隊伍標示
         ctx.fillStyle = 'rgba(255,255,255,0.7)';
         ctx.font = '10px sans-serif';
         ctx.textAlign = 'center';
