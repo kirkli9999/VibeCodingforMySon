@@ -230,7 +230,7 @@ const Renderer = (() => {
 
             ctx.fillStyle = p.color; ctx.font = 'bold 14px sans-serif';
             ctx.textAlign = i === 0 ? 'left' : 'right';
-            ctx.fillText(p.id === 0 ? 'P1 藍隊' : 'P2 紅隊', i === 0 ? x : x + barW, y - 6);
+            ctx.fillText(p.id === 0 ? 'P1' : 'P2', i === 0 ? x : x + barW, y - 6);
 
             if (p.weapon_name) {
                 ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '12px sans-serif';
@@ -253,8 +253,8 @@ const Renderer = (() => {
         ctx.fillRect(0, GAME_HEIGHT / 2 - 50, GAME_WIDTH, 100);
 
         const winner = state.winner_id;
-        const color = winner === 0 ? '#4488ff' : '#ff4444';
-        const name = winner === 0 ? 'P1 藍隊' : 'P2 紅隊';
+        const color = winner === 0 ? state.players[0].color : state.players[1].color;
+        const name = winner === 0 ? 'P1' : 'P2';
 
         ctx.fillStyle = color; ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(`${name} 贏得此局！`, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 5);
@@ -268,8 +268,8 @@ const Renderer = (() => {
         ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
         const winner = state.match_winner;
-        const color = winner === 0 ? '#4488ff' : '#ff4444';
-        const name = winner === 0 ? 'P1 藍隊' : 'P2 紅隊';
+        const color = winner === 0 ? state.players[0].color : state.players[1].color;
+        const name = winner === 0 ? 'P1' : 'P2';
 
         ctx.fillStyle = color; ctx.font = 'bold 48px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(`${name} 獲勝！`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20);
