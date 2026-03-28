@@ -72,21 +72,27 @@ class Player {
     }
 
     update(platforms, opponents, bullets) {
-        if (this.hp <= 0) return;
+        if (this.hp <= 0) return; // 死亡不更新
+
         if (this.invincible > 0) this.invincible--;
         if (this.attackCooldown > 0) this.attackCooldown--;
         if (this.attackTimer > 0) {
             this.attackTimer--;
             if (this.attackTimer <= 0) this.isAttacking = false;
         }
+
+        // 切換武器（循環 1→2→3→1）
         if (this.inputs.switchWeapon) {
             this.inputs.switchWeapon = false;
             this.weapon = (this.weapon % WEAPON_COUNT) + 1;
         }
+
+        // 攻擊
         if (this.inputs.attack && this.attackCooldown <= 0) {
             this.inputs.attack = false;
             this._doAttack(opponents, bullets);
         }
+
         if (this.isFlipping) {
             this._updateFlip(); this._applyGravity(); this._checkCollisions(platforms); return;
         }
@@ -94,9 +100,11 @@ class Player {
             this._startFlip(); this.inputs.flip = false;
             this._applyGravity(); this._checkCollisions(platforms); return;
         }
+
         this.velX = 0;
         if (this.inputs.left) { this.velX = -MOVE_SPEED; this.facing = -1; }
         if (this.inputs.right) { this.velX = MOVE_SPEED; this.facing = 1; }
+
         const wasCrouching = this.isCrouching;
         this.isCrouching = this.inputs.crouch && this.onGround;
         if (this.isCrouching) {
@@ -105,16 +113,20 @@ class Player {
         } else if (wasCrouching) {
             this.y -= PLAYER_HEIGHT - CROUCH_HEIGHT; this.height = PLAYER_HEIGHT;
         }
+
         if (this.inputs.jump && !this.isCrouching && this.jumpCount < this.maxJumps) {
             this.velY = JUMP_FORCE; this.onGround = false;
             this.jumpCount++; this.inputs.jump = false;
         }
+
         this._applyGravity(); this._checkCollisions(platforms);
     }
 
     _doAttack(opponents, bullets) {
         const wpn = WEAPONS[this.weapon];
-        this.attackCooldown = wpn.cooldown; this.isAttacking = true; this.attackTimer = 10;
+        this.attackCooldown = wpn.cooldown;
+        this.isAttacking = true;
+        this.attackTimer = 10;
         if (wpn.type === 'ranged') {
             const bx = this.facing === 1 ? this.x + this.width : this.x - 8;
             bullets.push(new Bullet(bx, this.y + this.height / 2, this.facing, this.id));
@@ -193,52 +205,90 @@ class Player {
     }
 }
 
+// ===== AI 電腦玩家 =====
 class AIController {
     constructor(playerId) {
         this.playerId = playerId;
         this.tickCounter = 0;
         this.actionTimer = 0;
+        this.currentAction = null;
     }
+
     update(gameState) {
         this.tickCounter++;
         const me = gameState.players[this.playerId];
         const opp = gameState.players[1 - this.playerId];
         if (me.hp <= 0) return;
+
+        // 每 10~30 幀做一次決策
         if (this.actionTimer > 0) { this.actionTimer--; return; }
         this.actionTimer = 10 + Math.floor(Math.random() * 20);
+
+        // 清除所有輸入
         for (const key in me.inputs) me.inputs[key] = false;
+
         const myX = me.x + me.width / 2;
         const oppX = opp.x + opp.width / 2;
         const dist = Math.abs(myX - oppX);
         const oppDir = oppX > myX ? 1 : -1;
+
+        // 面向對手
         me.facing = oppDir;
-        if (oppDir === 1) me.inputs.right = true; else me.inputs.left = true;
+        if (oppDir === 1) me.inputs.right = true;
+        else me.inputs.left = true;
+
+        // 攻擊範圍內
         const wpn = WEAPONS[me.weapon];
         if (dist < wpn.range + 10) {
-            me.inputs.left = false; me.inputs.right = false;
-            if (me.attackCooldown <= 0 && Math.random() < 0.6) me.inputs.attack = true;
-            if (Math.random() < 0.2) me.inputs.jump = true;
-            if (Math.random() < 0.1) me.inputs.crouch = true;
+            me.inputs.left = false;
+            me.inputs.right = false;
+            if (me.attackCooldown <= 0 && Math.random() < 0.6) {
+                me.inputs.attack = true;
+            }
+            // 隨機閃避
+            if (Math.random() < 0.2) {
+                me.inputs.jump = true;
+            }
+            if (Math.random() < 0.1) {
+                me.inputs.crouch = true;
+            }
         }
-        if (me.invincible > 0 && Math.random() < 0.5) me.inputs.jump = true;
-        if (Math.random() < 0.02) me.inputs.switchWeapon = true;
-        if (me.onGround && Math.random() < 0.05) me.inputs.jump = true;
+
+        // 被攻擊時隨機跳躍閃避
+        if (me.invincible > 0 && Math.random() < 0.5) {
+            me.inputs.jump = true;
+        }
+
+        // 偶爾切換武器
+        if (Math.random() < 0.02) {
+            me.inputs.switchWeapon = true;
+        }
+
+        // 如果在平台下方，跳上去
+        if (!me.onGround && me.velY > 0) {
+            // 落地中，不做額外動作
+        } else if (Math.random() < 0.05) {
+            me.inputs.jump = true;
+        }
     }
 }
 
+// ===== 遊戲狀態 =====
 class GameState {
-    constructor() {
+    constructor(p1Color, p2Color) {
         this.platforms = [
             new Platform(325, 300, 150, 15),
             new Platform(80, 430, 170, 15),
             new Platform(550, 430, 170, 15),
         ];
         this.players = [
-            new Player(0, 120, 430 - PLAYER_HEIGHT, '#4488ff'),
-            new Player(1, 600, 430 - PLAYER_HEIGHT, '#ff4444'),
+            new Player(0, 120, 430 - PLAYER_HEIGHT, p1Color || '#4488ff'),
+            new Player(1, 600, 430 - PLAYER_HEIGHT, p2Color || '#ff4444'),
         ];
         this.bullets = [];
         this.started = false;
+
+        // 勝負系統
         this.roundOver = false;
         this.winnerId = -1;
         this.roundEndTimer = 0;
@@ -260,20 +310,31 @@ class GameState {
             for (const k in p.inputs) p.inputs[k] = false;
         }
         this.bullets = [];
-        this.roundOver = false; this.winnerId = -1; this.roundEndTimer = 0;
+        this.roundOver = false;
+        this.winnerId = -1;
+        this.roundEndTimer = 0;
     }
 
     update() {
         if (!this.started || this.matchOver) return;
+
+        // 回合結束倒數
         if (this.roundOver) {
             this.roundEndTimer--;
             if (this.roundEndTimer <= 0) {
-                if (this.p1Wins >= 3) { this.matchOver = true; this.matchWinner = 0; }
-                else if (this.p2Wins >= 3) { this.matchOver = true; this.matchWinner = 1; }
-                else this.resetRound();
+                // 檢查是否五局三勝
+                if (this.p1Wins >= 3) {
+                    this.matchOver = true; this.matchWinner = 0;
+                } else if (this.p2Wins >= 3) {
+                    this.matchOver = true; this.matchWinner = 1;
+                } else {
+                    this.resetRound();
+                }
             }
             return;
         }
+
+        // 子彈更新
         for (const bullet of this.bullets) {
             bullet.update();
             for (const player of this.players) {
@@ -287,12 +348,19 @@ class GameState {
             }
         }
         this.bullets = this.bullets.filter(b => b.active);
-        for (const player of this.players) player.update(this.platforms, this.players, this.bullets);
+
+        for (const player of this.players) {
+            player.update(this.platforms, this.players, this.bullets);
+        }
+
+        // 檢查勝負
         for (const p of this.players) {
             if (p.hp <= 0) {
-                this.roundOver = true; this.winnerId = 1 - p.id;
-                this.roundEndTimer = 120;
-                if (this.winnerId === 0) this.p1Wins++; else this.p2Wins++;
+                this.roundOver = true;
+                this.winnerId = 1 - p.id; // 對手贏
+                this.roundEndTimer = 120; // 2 秒後下一局
+                if (this.winnerId === 0) this.p1Wins++;
+                else this.p2Wins++;
                 break;
             }
         }
@@ -304,9 +372,12 @@ class GameState {
             platforms: this.platforms.map(p => p.toDict()),
             bullets: this.bullets.map(b => b.toDict()),
             started: this.started,
-            round_over: this.roundOver, winner_id: this.winnerId,
-            p1_wins: this.p1Wins, p2_wins: this.p2Wins,
-            match_over: this.matchOver, match_winner: this.matchWinner,
+            round_over: this.roundOver,
+            winner_id: this.winnerId,
+            p1_wins: this.p1Wins,
+            p2_wins: this.p2Wins,
+            match_over: this.matchOver,
+            match_winner: this.matchWinner,
         };
     }
 }
