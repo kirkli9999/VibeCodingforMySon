@@ -64,6 +64,16 @@ const Renderer = (() => {
 
         // 玩家
         state.players.forEach(player => drawPlayer(player));
+
+        // 操控提示
+        drawControlHint();
+    }
+
+    function drawControlHint() {
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('← → 移動 | ↑/W 跳躍 | ↓/S 蹲下 | 蹲+跳=前空翻', GAME_WIDTH / 2, 20);
     }
 
     function drawPlayer(player) {

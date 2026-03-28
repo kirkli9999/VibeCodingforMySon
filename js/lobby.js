@@ -11,6 +11,7 @@
     const statusText = document.getElementById('status-text');
     const roomCodeDisplay = document.getElementById('room-code-display');
     const roomCodeInput = document.getElementById('room-code-input');
+    const practiceBtn = document.getElementById('btn-practice');
     const createBtn = document.getElementById('btn-create');
     const joinBtn = document.getElementById('btn-join');
     const backBtn = document.getElementById('btn-back');
@@ -39,6 +40,14 @@
         waitingSection.style.display = 'none';
         gameContainer.style.display = 'block';
     }
+
+    // --- 單人練習 ---
+    practiceBtn.addEventListener('click', () => {
+        isHost = true;
+        showGame();
+        Renderer.init(canvas);
+        startPracticeGame();
+    });
 
     // --- 建立房間 (Host) ---
     createBtn.addEventListener('click', async () => {
@@ -116,6 +125,22 @@
         } else {
             startGuestGame();
         }
+    }
+
+    // --- 單人練習迴圈 ---
+    function startPracticeGame() {
+        gameState = new GameState();
+        gameState.started = true;
+
+        Controls.init((action, pressed) => {
+            gameState.players[0].applyInput(action, pressed);
+        });
+
+        gameLoopId = setInterval(() => {
+            gameState.update();
+            const state = gameState.toDict();
+            Renderer.render(state);
+        }, 1000 / 60);
     }
 
     // --- Host 遊戲迴圈 ---
