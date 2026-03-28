@@ -14,9 +14,11 @@
             <h1 class="game-title">Triple Choice<br><span>Ace Duel</span></h1>
             <p class="subtitle">終極三選一：王牌對決</p>
 
-            <button id="btn-practice" class="lobby-btn practice-btn">單人練習</button>
+            <button id="btn-practice" class="lobby-btn practice-btn">單人練習 (vs 電腦)</button>
 
-            <div class="divider">— 雙人對戰 —</div>
+            <button id="btn-local" class="lobby-btn local-btn">電腦雙人 (同鍵盤)</button>
+
+            <div class="divider">— 連線對戰 —</div>
 
             <button id="btn-create" class="lobby-btn create-btn">建立房間</button>
 
@@ -53,14 +55,9 @@
                 <button class="ctrl-btn" data-action="crouch">▼</button>
                 <button class="ctrl-btn" data-action="right">▶</button>
             </div>
-            <div id="weapon-bar">
-                <button class="ctrl-btn weapon-btn" data-action="weapon1">1</button>
-                <button class="ctrl-btn weapon-btn" data-action="weapon2">2</button>
-                <button class="ctrl-btn weapon-btn" data-action="weapon3">3</button>
-            </div>
             <div id="action-buttons">
-                <button class="ctrl-btn action-btn attack-btn" data-action="attack">F</button>
-                <button class="ctrl-btn action-btn punch-btn" data-action="punch">G</button>
+                <button class="ctrl-btn weapon-btn" data-action="switchWeapon">換</button>
+                <button class="ctrl-btn action-btn attack-btn" data-action="attack">攻</button>
                 <button class="ctrl-btn action-btn jump-btn" data-action="jump">跳</button>
             </div>
         </div>

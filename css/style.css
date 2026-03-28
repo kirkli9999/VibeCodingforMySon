@@ -85,6 +85,14 @@ html, body {
     margin-bottom: 10px;
 }
 
+.local-btn {
+    background: linear-gradient(135deg, #cc8844, #aa6622);
+    width: 100%;
+    font-size: 22px;
+    padding: 18px;
+    margin-bottom: 10px;
+}
+
 .create-btn {
     background: linear-gradient(135deg, #4488ff, #2266dd);
     width: 100%;
