@@ -186,6 +186,57 @@ html, body {
     border: 1px solid rgba(255,255,255,0.3);
 }
 
+/* ===== 選色畫面 ===== */
+.color-pick-content {
+    text-align: center;
+    padding: 30px 20px;
+}
+
+.color-pick-content h2 {
+    font-size: 24px;
+    margin-bottom: 24px;
+}
+
+.color-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    max-width: 300px;
+    margin: 0 auto 20px;
+}
+
+.color-swatch {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    justify-self: center;
+}
+
+.color-swatch:hover,
+.color-swatch:active {
+    transform: scale(1.15);
+    border-color: #fff;
+}
+
+.color-swatch.disabled {
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+.color-swatch.selected {
+    border-color: #fff;
+    box-shadow: 0 0 16px 4px rgba(255,255,255,0.5);
+    transform: scale(1.15);
+}
+
+.color-pick-hint {
+    color: rgba(255,255,255,0.4);
+    font-size: 14px;
+}
+
 /* ===== 遊戲畫面 ===== */
 #game-container {
     width: 100%;
