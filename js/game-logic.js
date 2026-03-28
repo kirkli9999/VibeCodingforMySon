@@ -15,6 +15,7 @@ const FLIP_SPEED = 10;
 const FLIP_JUMP = -8;
 const GROUND_Y = 570;
 const MAX_HP = 20;
+const WEAPON_COUNT = 3;
 
 const WEAPONS = {
     1: { name: '拳頭', range: 50, damage: 1, cooldown: 15, type: 'melee' },
@@ -24,8 +25,7 @@ const WEAPONS = {
 
 class Platform {
     constructor(x, y, width, height) {
-        this.x = x; this.y = y;
-        this.width = width; this.height = height;
+        this.x = x; this.y = y; this.width = width; this.height = height;
     }
     toDict() { return { x: this.x, y: this.y, w: this.width, h: this.height }; }
 }
@@ -49,8 +49,7 @@ class Bullet {
 class Player {
     constructor(playerId, x, y, color) {
         this.id = playerId;
-        this.x = x; this.y = y;
-        this.color = color;
+        this.x = x; this.y = y; this.color = color;
         this.velX = 0; this.velY = 0;
         this.width = PLAYER_WIDTH; this.height = PLAYER_HEIGHT;
         this.onGround = true;
@@ -61,9 +60,11 @@ class Player {
         this.jumpCount = 0; this.maxJumps = 2;
         this.weapon = 1;
         this.attackCooldown = 0; this.isAttacking = false; this.attackTimer = 0;
-        this.punchCooldown = 0; this.isPunching = false; this.punchTimer = 0;
         this.invincible = 0;
-        this.inputs = { left:false, right:false, jump:false, crouch:false, flip:false, attack:false, punch:false, weapon1:false, weapon2:false, weapon3:false };
+        this.inputs = {
+            left: false, right: false, jump: false, crouch: false, flip: false,
+            attack: false, switchWeapon: false,
+        };
     }
 
     applyInput(action, pressed) {
@@ -71,25 +72,21 @@ class Player {
     }
 
     update(platforms, opponents, bullets) {
+        if (this.hp <= 0) return;
         if (this.invincible > 0) this.invincible--;
         if (this.attackCooldown > 0) this.attackCooldown--;
-        if (this.punchCooldown > 0) this.punchCooldown--;
-        if (this.attackTimer > 0) { this.attackTimer--; if (this.attackTimer <= 0) this.isAttacking = false; }
-        if (this.punchTimer > 0) { this.punchTimer--; if (this.punchTimer <= 0) this.isPunching = false; }
-
-        if (this.inputs.weapon1) { this.weapon = 1; this.inputs.weapon1 = false; }
-        if (this.inputs.weapon2) { this.weapon = 2; this.inputs.weapon2 = false; }
-        if (this.inputs.weapon3) { this.weapon = 3; this.inputs.weapon3 = false; }
-
+        if (this.attackTimer > 0) {
+            this.attackTimer--;
+            if (this.attackTimer <= 0) this.isAttacking = false;
+        }
+        if (this.inputs.switchWeapon) {
+            this.inputs.switchWeapon = false;
+            this.weapon = (this.weapon % WEAPON_COUNT) + 1;
+        }
         if (this.inputs.attack && this.attackCooldown <= 0) {
             this.inputs.attack = false;
             this._doAttack(opponents, bullets);
         }
-        if (this.inputs.punch && this.punchCooldown <= 0) {
-            this.inputs.punch = false;
-            this._doPunch(opponents);
-        }
-
         if (this.isFlipping) {
             this._updateFlip(); this._applyGravity(); this._checkCollisions(platforms); return;
         }
@@ -97,11 +94,9 @@ class Player {
             this._startFlip(); this.inputs.flip = false;
             this._applyGravity(); this._checkCollisions(platforms); return;
         }
-
         this.velX = 0;
         if (this.inputs.left) { this.velX = -MOVE_SPEED; this.facing = -1; }
         if (this.inputs.right) { this.velX = MOVE_SPEED; this.facing = 1; }
-
         const wasCrouching = this.isCrouching;
         this.isCrouching = this.inputs.crouch && this.onGround;
         if (this.isCrouching) {
@@ -110,12 +105,10 @@ class Player {
         } else if (wasCrouching) {
             this.y -= PLAYER_HEIGHT - CROUCH_HEIGHT; this.height = PLAYER_HEIGHT;
         }
-
         if (this.inputs.jump && !this.isCrouching && this.jumpCount < this.maxJumps) {
             this.velY = JUMP_FORCE; this.onGround = false;
             this.jumpCount++; this.inputs.jump = false;
         }
-
         this._applyGravity(); this._checkCollisions(platforms);
     }
 
@@ -130,14 +123,9 @@ class Player {
         }
     }
 
-    _doPunch(opponents) {
-        this.punchCooldown = 15; this.isPunching = true; this.punchTimer = 8;
-        this._meleeHit(opponents, 50, 1);
-    }
-
     _meleeHit(opponents, range, damage) {
         for (const opp of opponents) {
-            if (opp.id === this.id || opp.invincible > 0) continue;
+            if (opp.id === this.id || opp.invincible > 0 || opp.hp <= 0) continue;
             const myCenter = this.x + this.width / 2;
             const oppCenter = opp.x + opp.width / 2;
             const dist = Math.abs(myCenter - oppCenter);
@@ -154,7 +142,9 @@ class Player {
         this.isFlipping = true; this.flipTimer = FLIP_DURATION; this.flipAngle = 0;
         this.velY = FLIP_JUMP; this.velX = FLIP_SPEED * this.facing;
         this.onGround = false; this.jumpCount = this.maxJumps;
-        if (this.isCrouching) { this.y -= PLAYER_HEIGHT - CROUCH_HEIGHT; this.height = PLAYER_HEIGHT; this.isCrouching = false; }
+        if (this.isCrouching) {
+            this.y -= PLAYER_HEIGHT - CROUCH_HEIGHT; this.height = PLAYER_HEIGHT; this.isCrouching = false;
+        }
     }
 
     _updateFlip() {
@@ -174,8 +164,8 @@ class Player {
         this.onGround = false;
         for (const plat of platforms) {
             if (this.velY >= 0) {
-                const playerBottom = this.y + this.height;
-                if (playerBottom >= plat.y && playerBottom <= plat.y + plat.height + this.velY &&
+                const pb = this.y + this.height;
+                if (pb >= plat.y && pb <= plat.y + plat.height + this.velY &&
                     this.x + this.width > plat.x && this.x < plat.x + plat.width) {
                     this.y = plat.y - this.height; this.velY = 0;
                     this.onGround = true; this.jumpCount = 0; break;
@@ -196,9 +186,43 @@ class Player {
             is_crouching: this.isCrouching, on_ground: this.onGround,
             hp: this.hp, max_hp: MAX_HP,
             weapon: this.weapon, weapon_name: WEAPONS[this.weapon].name,
-            is_attacking: this.isAttacking, is_punching: this.isPunching,
+            weapon_type: WEAPONS[this.weapon].type,
+            is_attacking: this.isAttacking,
             invincible: this.invincible, jump_count: this.jumpCount,
         };
+    }
+}
+
+class AIController {
+    constructor(playerId) {
+        this.playerId = playerId;
+        this.tickCounter = 0;
+        this.actionTimer = 0;
+    }
+    update(gameState) {
+        this.tickCounter++;
+        const me = gameState.players[this.playerId];
+        const opp = gameState.players[1 - this.playerId];
+        if (me.hp <= 0) return;
+        if (this.actionTimer > 0) { this.actionTimer--; return; }
+        this.actionTimer = 10 + Math.floor(Math.random() * 20);
+        for (const key in me.inputs) me.inputs[key] = false;
+        const myX = me.x + me.width / 2;
+        const oppX = opp.x + opp.width / 2;
+        const dist = Math.abs(myX - oppX);
+        const oppDir = oppX > myX ? 1 : -1;
+        me.facing = oppDir;
+        if (oppDir === 1) me.inputs.right = true; else me.inputs.left = true;
+        const wpn = WEAPONS[me.weapon];
+        if (dist < wpn.range + 10) {
+            me.inputs.left = false; me.inputs.right = false;
+            if (me.attackCooldown <= 0 && Math.random() < 0.6) me.inputs.attack = true;
+            if (Math.random() < 0.2) me.inputs.jump = true;
+            if (Math.random() < 0.1) me.inputs.crouch = true;
+        }
+        if (me.invincible > 0 && Math.random() < 0.5) me.inputs.jump = true;
+        if (Math.random() < 0.02) me.inputs.switchWeapon = true;
+        if (me.onGround && Math.random() < 0.05) me.inputs.jump = true;
     }
 }
 
@@ -215,24 +239,63 @@ class GameState {
         ];
         this.bullets = [];
         this.started = false;
+        this.roundOver = false;
+        this.winnerId = -1;
+        this.roundEndTimer = 0;
+        this.p1Wins = 0;
+        this.p2Wins = 0;
+        this.matchOver = false;
+        this.matchWinner = -1;
+    }
+
+    resetRound() {
+        this.players[0].x = 120; this.players[0].y = 430 - PLAYER_HEIGHT;
+        this.players[1].x = 600; this.players[1].y = 430 - PLAYER_HEIGHT;
+        for (const p of this.players) {
+            p.hp = MAX_HP; p.velX = 0; p.velY = 0;
+            p.onGround = true; p.isCrouching = false; p.isFlipping = false;
+            p.weapon = 1; p.attackCooldown = 0; p.isAttacking = false;
+            p.invincible = 0; p.jumpCount = 0; p.height = PLAYER_HEIGHT;
+            p.facing = p.id === 0 ? 1 : -1;
+            for (const k in p.inputs) p.inputs[k] = false;
+        }
+        this.bullets = [];
+        this.roundOver = false; this.winnerId = -1; this.roundEndTimer = 0;
     }
 
     update() {
-        if (!this.started) return;
+        if (!this.started || this.matchOver) return;
+        if (this.roundOver) {
+            this.roundEndTimer--;
+            if (this.roundEndTimer <= 0) {
+                if (this.p1Wins >= 3) { this.matchOver = true; this.matchWinner = 0; }
+                else if (this.p2Wins >= 3) { this.matchOver = true; this.matchWinner = 1; }
+                else this.resetRound();
+            }
+            return;
+        }
         for (const bullet of this.bullets) {
             bullet.update();
             for (const player of this.players) {
-                if (player.id === bullet.ownerId || player.invincible > 0 || !bullet.active) continue;
+                if (player.id === bullet.ownerId || player.invincible > 0 || !bullet.active || player.hp <= 0) continue;
                 if (bullet.x < player.x + player.width && bullet.x + bullet.width > player.x &&
                     bullet.y < player.y + player.height && bullet.y + bullet.height > player.y) {
                     player.hp -= WEAPONS[3].damage; player.invincible = 30;
-                    player.velX = (bullet.velX > 0 ? 1 : -1) * 4; player.velY = -3;
-                    player.onGround = false; bullet.active = false;
+                    player.velX = (bullet.velX > 0 ? 1 : -1) * 4;
+                    player.velY = -3; player.onGround = false; bullet.active = false;
                 }
             }
         }
         this.bullets = this.bullets.filter(b => b.active);
         for (const player of this.players) player.update(this.platforms, this.players, this.bullets);
+        for (const p of this.players) {
+            if (p.hp <= 0) {
+                this.roundOver = true; this.winnerId = 1 - p.id;
+                this.roundEndTimer = 120;
+                if (this.winnerId === 0) this.p1Wins++; else this.p2Wins++;
+                break;
+            }
+        }
     }
 
     toDict() {
@@ -241,10 +304,14 @@ class GameState {
             platforms: this.platforms.map(p => p.toDict()),
             bullets: this.bullets.map(b => b.toDict()),
             started: this.started,
+            round_over: this.roundOver, winner_id: this.winnerId,
+            p1_wins: this.p1Wins, p2_wins: this.p2Wins,
+            match_over: this.matchOver, match_winner: this.matchWinner,
         };
     }
 }
 
 window.GameState = GameState;
+window.AIController = AIController;
 window.WEAPONS = WEAPONS;
 window.MAX_HP = MAX_HP;
